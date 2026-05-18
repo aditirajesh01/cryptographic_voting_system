@@ -4,7 +4,7 @@ db.py
 SQLite database layer for the cryptographic voting system.
 
 Schema:
-    voters      — voter registry (ID, RSA public key, has_voted flag)
+    voters      — voter registry (ID, name, constituency, RSA public key, has_voted flag)
     votes       — encrypted vote payloads (no plaintext, no voter linkage)
     audit_chain — HMAC chain entries for tamper-evident audit log
 
@@ -16,7 +16,7 @@ Usage:
     db = Database("voting.db")
     db.init_schema()
 
-    db.register_voter("voter_001", n=pub.n, e=pub.e)
+    db.register_voter("voter_001", name="Alice", constituency="North", n=pub.n, e=pub.e)
     db.store_vote(encrypted_payload, chain_entry)
 """
 
@@ -61,7 +61,7 @@ class Database:
             return self._memory_conn
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")   # Better concurrency
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
         return conn
 
@@ -77,11 +77,12 @@ class Database:
         with self._connect() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS voters (
-                    voter_id    TEXT    PRIMARY KEY,
-                    rsa_n       TEXT    NOT NULL,
-                    rsa_e       TEXT    NOT NULL,
-                    has_voted   INTEGER NOT NULL DEFAULT 0,
-                    registered_at INTEGER NOT NULL
+                    voter_id        TEXT    PRIMARY KEY,
+                    name            TEXT    NOT NULL,
+                    constituency    TEXT    NOT NULL,
+                    rsa_n           TEXT    NOT NULL,
+                    rsa_e           TEXT    NOT NULL,
+                    has_voted       INTEGER NOT NULL DEFAULT 0
                 );
 
                 CREATE TABLE IF NOT EXISTS votes (
@@ -102,14 +103,23 @@ class Database:
     # Voter registry
     # ------------------------------------------------------------------
 
-    def register_voter(self, voter_id: str, n: int, e: int) -> None:
+    def register_voter(
+        self,
+        voter_id: str,
+        name: str,
+        constituency: str,
+        n: int,
+        e: int,
+    ) -> None:
         """
         Register a voter with their RSA public key.
 
         Args:
-            voter_id: Unique voter identifier (e.g. national ID hash).
-            n: RSA modulus as integer.
-            e: RSA public exponent as integer.
+            voter_id:     Unique voter identifier (simulates hashed national ID).
+            name:         Voter's full name.
+            constituency: Voter's voting district.
+            n:            RSA modulus as integer.
+            e:            RSA public exponent as integer.
 
         Raises:
             ValueError: If voter_id is already registered.
@@ -121,9 +131,9 @@ class Database:
             if existing:
                 raise ValueError(f"Voter '{voter_id}' is already registered.")
             conn.execute(
-                "INSERT INTO voters (voter_id, rsa_n, rsa_e, has_voted, registered_at) "
-                "VALUES (?, ?, ?, 0, ?)",
-                (voter_id, str(n), str(e), int(time.time())),
+                "INSERT INTO voters (voter_id, name, constituency, rsa_n, rsa_e, has_voted) "
+                "VALUES (?, ?, ?, ?, ?, 0)",
+                (voter_id, name, constituency, str(n), str(e)),
             )
 
     def get_voter(self, voter_id: str) -> Optional[dict]:
@@ -131,29 +141,30 @@ class Database:
         Retrieve voter record by ID.
 
         Returns:
-            Dict with keys: voter_id, rsa_n (int), rsa_e (int), has_voted (bool).
+            Dict with keys: voter_id, name, constituency,
+                            rsa_n (int), rsa_e (int), has_voted (bool).
             None if voter not found.
         """
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT voter_id, rsa_n, rsa_e, has_voted FROM voters WHERE voter_id = ?",
+                "SELECT voter_id, name, constituency, rsa_n, rsa_e, has_voted "
+                "FROM voters WHERE voter_id = ?",
                 (voter_id,),
             ).fetchone()
             if row is None:
                 return None
             return {
-                "voter_id": row["voter_id"],
-                "rsa_n":    int(row["rsa_n"]),
-                "rsa_e":    int(row["rsa_e"]),
-                "has_voted": bool(row["has_voted"]),
+                "voter_id":     row["voter_id"],
+                "name":         row["name"],
+                "constituency": row["constituency"],
+                "rsa_n":        int(row["rsa_n"]),
+                "rsa_e":        int(row["rsa_e"]),
+                "has_voted":    bool(row["has_voted"]),
             }
 
     def mark_voted(self, voter_id: str) -> None:
         """
         Mark a voter as having cast their vote.
-
-        Args:
-            voter_id: Voter to mark.
 
         Raises:
             ValueError: If voter not found or has already voted.
@@ -175,7 +186,7 @@ class Database:
         Check if a voter has already cast their vote.
 
         Returns:
-            True if voted, False if not. False if voter not found.
+            True if voted, False otherwise. False if voter not found.
         """
         with self._connect() as conn:
             row = conn.execute(
@@ -197,9 +208,17 @@ class Database:
         """Return all registered voters (for admin/audit use)."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT voter_id, has_voted FROM voters ORDER BY registered_at"
+                "SELECT voter_id, name, constituency, has_voted FROM voters"
             ).fetchall()
-            return [{"voter_id": r["voter_id"], "has_voted": bool(r["has_voted"])} for r in rows]
+            return [
+                {
+                    "voter_id":     r["voter_id"],
+                    "name":         r["name"],
+                    "constituency": r["constituency"],
+                    "has_voted":    bool(r["has_voted"]),
+                }
+                for r in rows
+            ]
 
     # ------------------------------------------------------------------
     # Vote storage
@@ -223,7 +242,6 @@ class Database:
                 (encrypted_vote, chain_entry.timestamp),
             )
             vote_id = cursor.lastrowid
-
             conn.execute(
                 "INSERT INTO audit_chain (sequence, timestamp, data, hmac) "
                 "VALUES (?, ?, ?, ?)",

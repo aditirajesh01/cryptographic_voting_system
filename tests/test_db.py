@@ -54,7 +54,7 @@ class TestSchema:
 class TestVoterRegistry:
 
     def test_register_and_retrieve(self, db):
-        db.register_voter("voter_001", n=12345, e=65537)
+        db.register_voter("voter_001", name="Test Voter", constituency="Test District", n=12345, e=65537)
         voter = db.get_voter("voter_001")
         assert voter is not None
         assert voter["voter_id"] == "voter_001"
@@ -63,12 +63,12 @@ class TestVoterRegistry:
         assert voter["has_voted"] is False
 
     def test_duplicate_registration_raises(self, db):
-        db.register_voter("voter_001", n=12345, e=65537)
+        db.register_voter("voter_001", name="Test Voter", constituency="Test District", n=12345, e=65537)
         with pytest.raises(ValueError, match="already registered"):
-            db.register_voter("voter_001", n=99999, e=65537)
+            db.register_voter("voter_001", name="Test Voter", constituency="Test District", n=99999, e=65537)
 
     def test_voter_exists_true(self, db):
-        db.register_voter("voter_001", n=12345, e=65537)
+        db.register_voter("voter_001", name="Test Voter", constituency="Test District", n=12345, e=65537)
         assert db.voter_exists("voter_001") is True
 
     def test_voter_exists_false(self, db):
@@ -79,14 +79,14 @@ class TestVoterRegistry:
 
     def test_multiple_voters(self, db):
         for i in range(5):
-            db.register_voter(f"voter_{i:03d}", n=i + 1000, e=65537)
+            db.register_voter(f"voter_{i:03d}", name="Test Voter", constituency="Test District", n=i + 1000, e=65537)
         voters = db.get_all_voters()
         assert len(voters) == 5
 
     def test_rsa_n_large_integer_preserved(self, db):
         """RSA modulus is a 2048-bit integer — must survive DB round-trip."""
         large_n = 2**2047 + 1
-        db.register_voter("voter_large", n=large_n, e=65537)
+        db.register_voter("voter_large", name="Test Voter", constituency="Test District", n=large_n, e=65537)
         voter = db.get_voter("voter_large")
         assert voter["rsa_n"] == large_n
 
@@ -98,12 +98,12 @@ class TestVoterRegistry:
 class TestMarkVoted:
 
     def test_mark_voted_sets_flag(self, db):
-        db.register_voter("voter_001", n=12345, e=65537)
+        db.register_voter("voter_001", name="Test Voter", constituency="Test District", n=12345, e=65537)
         db.mark_voted("voter_001")
         assert db.has_voted("voter_001") is True
 
     def test_double_vote_raises(self, db):
-        db.register_voter("voter_001", n=12345, e=65537)
+        db.register_voter("voter_001", name="Test Voter", constituency="Test District", n=12345, e=65537)
         db.mark_voted("voter_001")
         with pytest.raises(ValueError, match="already voted"):
             db.mark_voted("voter_001")
@@ -113,7 +113,7 @@ class TestMarkVoted:
             db.mark_voted("ghost")
 
     def test_has_voted_false_before_voting(self, db):
-        db.register_voter("voter_001", n=12345, e=65537)
+        db.register_voter("voter_001", name="Test Voter", constituency="Test District", n=12345, e=65537)
         assert db.has_voted("voter_001") is False
 
     def test_has_voted_unknown_voter_returns_false(self, db):

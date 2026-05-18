@@ -1,0 +1,7 @@
+{
+    "candidates": [
+        {"id": "C1", "name": "Candidate A", "party": "Party A"},
+        {"id": "C2", "name": "Candidate B", "party": "Party B"},
+        {"id": "C3", "name": "Candidate C", "party": "Party C"}
+    ]
+}
