@@ -1,0 +1,58 @@
+{
+  "benchmark_params": {
+    "timing_iterations": 50,
+    "gi_rounds": 40,
+    "gi_vertices": 20,
+    "key_size_bits": 2048
+  },
+  "results": [
+    {
+      "scheme": "Graph Isomorphism ZKP",
+      "hardness_assumption": "Graph Isomorphism (combinatorial hardness)",
+      "setup_ms": 0.2038,
+      "commit_ms": 0.0347,
+      "challenge_ms": 0.0022,
+      "response_ms": 0.0006,
+      "verify_ms": 0.0117,
+      "total_round_ms": 0.0493,
+      "full_protocol_ms": 2.1741,
+      "proof_size_bytes": 774,
+      "rounds": 40,
+      "soundness_error": "2^(-40)",
+      "soundness_float": 9.094947017729282e-13,
+      "iterations": 50
+    },
+    {
+      "scheme": "Schnorr Sigma Protocol",
+      "hardness_assumption": "Discrete Logarithm Problem (DLP)",
+      "setup_ms": 24.7049,
+      "commit_ms": 24.9431,
+      "challenge_ms": 0.0025,
+      "response_ms": 0.0021,
+      "verify_ms": 26.8946,
+      "total_round_ms": 51.8425,
+      "full_protocol_ms": 76.5473,
+      "proof_size_bytes": 512,
+      "rounds": 1,
+      "soundness_error": "2^(-128) per round",
+      "soundness_float": 2.938735877055719e-39,
+      "iterations": 50
+    },
+    {
+      "scheme": "Guillou-Quisquater (GQ)",
+      "hardness_assumption": "RSA assumption (integer factorization)",
+      "setup_ms": 1037.8312,
+      "commit_ms": 0.2195,
+      "challenge_ms": 0.0023,
+      "response_ms": 0.2898,
+      "verify_ms": 0.5077,
+      "total_round_ms": 1.0193,
+      "full_protocol_ms": 1038.8505,
+      "proof_size_bytes": 512,
+      "rounds": 1,
+      "soundness_error": "1/e \u2248 1.5\u00d710^(-5) per round",
+      "soundness_float": 1.5258556235409006e-05,
+      "iterations": 50
+    }
+  ]
+}
