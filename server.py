@@ -380,14 +380,22 @@ class VotingServer:
     shared across threads (protected by a lock for writes).
     """
 
+    CHAIN_KEY_FILE = "chain_key.bin"
+
     def __init__(self, host: str, port: int, db_path: str):
         self.host          = host
         self.port          = port
         self.db            = Database(db_path)
-        self.chain         = HMACChain(HMACChain.generate_chain_key())
         self.token_manager = TokenManager()
         self.lock          = threading.Lock()
         self.candidates    = self._load_candidates()
+
+        # Generate chain key and persist to disk for audit_verify.py
+        chain_key = HMACChain.generate_chain_key()
+        with open(self.CHAIN_KEY_FILE, "wb") as f:
+            f.write(chain_key)
+        self.chain = HMACChain(chain_key)
+        print(f"[+] Chain key written to {self.CHAIN_KEY_FILE}")
 
     def _load_candidates(self) -> list[dict]:
         """Load candidate list from candidates.json."""
